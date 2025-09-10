@@ -1,0 +1,19 @@
+namespace: mysql
+secrets:
+  data:
+    MYSQL_ROOT_PASSWORD: rootpass
+    MYSQL_USER: appuser
+    MYSQL_PASSWORD: apppass
+
+replicas: 2
+image: { repository: mysql, tag: "8.0", pullPolicy: IfNotPresent }
+
+pvc: { storage: "1Gi" }
+
+affinity:
+  nodeAffinity: { key: "app", values: ["mysql"] }
+  toleration: { key: "app", value: "mysql", effect: "NoSchedule" }
+
+resources:
+  requests: { cpu: "100m", memory: "256Mi" }
+  limits: { cpu: "500m", memory: "512Mi" }

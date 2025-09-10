@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "todoapp.fullname" . }}
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: {{ .Chart.Name }} }
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: {{ .Values.rollingUpdate.maxUnavailable }}
+      maxSurge: {{ .Values.rollingUpdate.maxSurge }}
+  template:
+    metadata:
+      labels: { app: {{ .Chart.Name }} }
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            preference:
+              matchExpressions:
+              - key: {{ .Values.nodeAffinity.key }}
+                operator: In
+                values: {{ toYaml .Values.nodeAffinity.values | nindent 16 }}
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels: { app: {{ .Chart.Name }} }
+            topologyKey: kubernetes.io/hostname
+      containers:
+      - name: {{ .Chart.Name }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports: [{ containerPort: {{ .Values.service.targetPort }} }]
+        env:
+        {{- range $k, $v := .Values.secrets.data }}
+        - name: {{ $k }}
+          valueFrom:
+            secretKeyRef:
+              name: {{ $.Chart.Name }}-app-secret
+              key: {{ $k }}
+        {{- end }}
+        resources:
+          requests: { cpu: {{ .Values.resources.requests.cpu }}, memory: {{ .Values.resources.requests.memory }} }
+          limits:   { cpu: {{ .Values.resources.limits.cpu }},   memory: {{ .Values.resources.limits.memory }} }
+        readinessProbe: { httpGet: { path: /health, port: {{ .Values.service.targetPort }} }, initialDelaySeconds: 10 }
+        livenessProbe:  { httpGet: { path: /health, port: {{ .Values.service.targetPort }} }, initialDelaySeconds: 30 }
