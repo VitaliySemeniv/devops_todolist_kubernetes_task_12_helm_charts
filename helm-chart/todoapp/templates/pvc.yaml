@@ -4,5 +4,8 @@ metadata:
   name: {{ .Chart.Name }}-pvc
   namespace: {{ .Values.namespace }}
 spec:
-  accessModes: ["ReadWriteOnce"]
-  resources: { requests: { storage: {{ .Values.pvc.storage }} } }
+  accessModes: [ "ReadWriteOnce" ]
+  resources:
+    requests:
+      storage: {{ .Values.storage.pvcRequest }}
+  volumeName: {{ .Chart.Name }}-pv

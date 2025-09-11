@@ -3,9 +3,12 @@ kind: Service
 metadata:
   name: { { .Chart.Name } }
   namespace: { { .Values.namespace } }
+  labels:
+    app: { { .Chart.Name } }
 spec:
   clusterIP: None
-  selector: { app: { { .Chart.Name } } }
+  selector:
+    app: { { .Chart.Name } }
   ports:
     - name: mysql
       port: 3306
