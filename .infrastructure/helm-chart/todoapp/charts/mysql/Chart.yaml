@@ -1,12 +1,4 @@
 apiVersion: v2
-name: todoapp
-description: Todo application with MySQL subchart
-type: application
+name: mysql
 version: 0.1.0
-appVersion: "1.0.0"
-
-# ⬇⬇ ОБОВ’ЯЗКОВО: залежність на mysql
-dependencies:
-  - name: mysql
-    version: 0.1.0
-    repository: "file://charts/mysql"
+type: application
