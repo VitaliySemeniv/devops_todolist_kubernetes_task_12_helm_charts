@@ -1,37 +1,27 @@
-namespace: mysql
+# --- Service ---
+service:
+  port: 3306
 
-image:
-  repository: mysql
-  tag: "8.0"
+# --- PVC (мінімум, щоб шаблони збирались; відкоригуй під завдання) ---
+pvc:
+  storage: 1Gi
+  storageClassName: ""
 
-replicas: 3
-
+# --- Resources (мінімальні, щоб lint не сварився) ---
 resources:
   requests:
-    cpu: "250m"
-    memory: "512Mi"
+    cpu: "100m"
+    memory: "128Mi"
   limits:
-    cpu: "1"
-    memory: "1Gi"
+    cpu: "500m"
+    memory: "512Mi"
 
-pvc:
-  storage: 2Gi
+# --- Affinity/Tolerations за замовчуванням (не обов'язкові, але ключі існують) ---
+affinity: {}
+tolerations: []
 
-affinity:
-  nodeAffinity:
-    key: app
-    values: ["mysql"]
-  podAntiAffinity: true
-tolerations:
-  - key: "app"
-    operator: "Equal"
-    value: "mysql"
-    effect: "NoSchedule"
-
-secrets:
-  - name: MYSQL_ROOT_PASSWORD
-    value: rootpass
-  - name: MYSQL_USER
-    value: appuser
-  - name: MYSQL_PASSWORD
-    value: apppass
+# --- Додаткові значення, якщо десь використовуєш у шаблонах ---
+image:
+  repository: mysql
+  tag: "8.4"
+  pullPolicy: IfNotPresent
