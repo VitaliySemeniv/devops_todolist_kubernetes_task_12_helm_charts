@@ -3,13 +3,14 @@ kind: Pod
 metadata:
   name: "{{ include "todoapp.fullname" . }}-test-connection"
   labels:
-    {{- include "todoapp.labels" . | nindent 4 }}
-  annotations:
-    "helm.sh/hook": test
+    {{- include "todoapp.labels" . | nindent 6 }}
 spec:
   containers:
     - name: wget
       image: busybox
-      command: ['wget']
-      args: ['{{ include "todoapp.fullname" . }}:{{ .Values.service.port }}']
+      command:
+        - sh
+        - -c
+        - >
+          wget -qO- http://{{ include "todoapp.fullname" . }}:{{ .Values.service.port | default 80 }}/healthz || exit 1
   restartPolicy: Never

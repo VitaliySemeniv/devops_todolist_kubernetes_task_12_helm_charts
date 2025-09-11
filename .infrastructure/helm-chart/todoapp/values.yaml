@@ -121,3 +121,8 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
+
+service:
+  type: ClusterIP
+  port: 80         # <-- є, щоб test-connection не падав
+  targetPort: 8000 # якщо твій контейнер слухає 8000, скоригуй під себе
