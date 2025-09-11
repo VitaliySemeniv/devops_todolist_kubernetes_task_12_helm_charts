@@ -1,17 +1,13 @@
-{{-/* Повне ім’я ресурсу */ -}}
-{{- define "mysql.fullname" -}}
-{{- if .Values.fullnameOverride -}}
-{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" -}}
-{{- else -}}
+{{/*
+Expand the name of the chart.
+*/}}
+{{- define "todoapp.fullname" -}}
 {{- printf "%s-%s" .Release.Name .Chart.Name | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
-{{- end -}}
 
-{{-/* labels для ресурсів */ -}}
-{{- define "mysql.labels" -}}
-app.kubernetes.io/name: {{ .Chart.Name }}
-app.kubernetes.io/instance: {{ .Release.Name }}
-app.kubernetes.io/version: {{ .Chart.AppVersion }}
-app.kubernetes.io/managed-by: {{ .Release.Service }}
-helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version }}
+{{/*
+Expand the name of the MySQL subchart.
+*/}}
+{{- define "mysql.fullname" -}}
+{{- printf "%s-%s" .Release.Name "mysql" | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
