@@ -1,0 +1,195 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "todoapp.fullname" . }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "todoapp.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "todoapp.selectorLabels" . | nindent 6 }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: {{ default 0 .Values.rollingUpdate.maxUnavailable }}
+      maxSurge: {{ default 1 .Values.rollingUpdate.maxSurge }}
+  template:
+    metadata:
+      labels:
+        {{- include "todoapp.selectorLabels" . | nindent 8 }}
+    spec:
+      # SA дістаємо з values; якщо немає — візьмемо "default"
+      serviceAccountName: {{ default "default" .Values.serviceAccount.name }}
+
+      {{- /* AFFINITY — виводимо один блок, усередині умовні підрозділи */}}
+      {{- if or (and .Values.nodeAffinity .Values.nodeAffinity.enabled) (and .Values.podAntiAffinity .Values.podAntiAffinity.enabled) }}
+      affinity:
+        {{- if and .Values.nodeAffinity .Values.nodeAffinity.enabled }}
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: {{ default "kubernetes.io/os" .Values.nodeAffinity.key }}
+                operator: {{ default "In" .Values.nodeAffinity.operator }}
+                values:
+                {{- range (default (list "linux") .Values.nodeAffinity.values) }}
+                - {{ . | quote }}
+                {{- end }}
+        {{- end }}
+        {{- if and .Values.podAntiAffinity .Values.podAntiAffinity.enabled }}
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: {{ default "app.kubernetes.io/name" .Values.podAntiAffinity.labelKey }}
+                operator: In
+                values:
+                - {{ include "todoapp.name" . }}
+            topologyKey: {{ default "kubernetes.io/hostname" .Values.podAntiAffinity.topologyKey }}
+        {{- end }}
+      {{- end }}
+
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ default "IfNotPresent" .Values.image.pullPolicy }}
+          envFrom:
+            - secretRef:
+                name: {{ include "todoapp.fullname" . }}-secret
+          ports:
+            - containerPort: {{ default .Values.service.port .Values.service.targetPort }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          {{- if and .Values.pvc .Values.pvc.enabled }}
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+          {{- end }}
+
+      {{- if and .Values.pvc .Values.pvc.enabled }}
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "todoapp.fullname" . }}-pvc
+      {{- end }}
+# ====== values.yaml для головного чарту todoapp ======
+
+namespace: mateapp
+
+image:
+  repository: nginx
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+# секрети як key/value (щоб їх можна було range-ити в шаблонах)
+secrets:
+  app:
+    DJANGO_SECRET_KEY: "changeme"
+    DEBUG: "false"
+
+service:
+  type: ClusterIP
+  port: 8000
+  targetPort: 8000
+
+resources:
+  requests:
+    cpu: "100m"
+    memory: "128Mi"
+  limits:
+    cpu: "500m"
+    memory: "512Mi"
+
+rollingUpdate:
+  maxUnavailable: 0
+  maxSurge: 1
+
+# --- важливо: є ключ enabled, щоб темплейт не падав
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 50
+  targetMemoryUtilizationPercentage: 60
+
+pvc:
+  enabled: false
+  storage: 1Gi
+  storageClassName: ""   # якщо є свій StorageClass — вкажи тут
+
+serviceAccount:
+  name: todoapp
+
+# --- АФІНІТІ: додані ключі enabled і коректний список values
+nodeAffinity:
+  enabled: false
+  key: "kubernetes.io/os"
+  operator: In
+  values:
+    - "linux"
+
+podAntiAffinity:
+  enabled: false
+  labelKey: "app.kubernetes.io/name"
+  topologyKey: "kubernetes.io/hostname"
+
+ingress:
+  enabled: false
+  className: ""
+  host: todo.local
+  path: /
+  pathType: Prefix
+  annotations: {}
+
+# ====== значення для підчарту mysql (charts/mysql) ======
+mysql:
+  namespace: mateapp
+
+  image:
+    repository: mysql
+    tag: "8.4"
+    pullPolicy: IfNotPresent
+
+  replicas: 1
+
+  service:
+    port: 3306
+
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+
+  pvc:
+    storage: 1Gi
+    storageClassName: ""  # якщо є свій StorageClass — вкажи тут
+
+  affinity: {}
+  tolerations: []
+
+  # цей блок читає mysql/templates/hpa.yaml
+  hpa:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 1
+    targetCPUUtilizationPercentage: 80
+    targetMemoryUtilizationPercentage: 80
+
+  ingress:
+    enabled: false
+    className: ""
+    host: mysql.local
+    path: /
+    pathType: Prefix
+    annotations: {}
+
+# щоб не спотикатися об serviceaccount у підчартах із шаблонів
+subcharts:
+  serviceAccount:
+    create: false
+    name: ""

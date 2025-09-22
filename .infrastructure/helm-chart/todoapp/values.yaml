@@ -1,0 +1,114 @@
+# ====== values.yaml (root chart: todoapp) ======
+
+namespace: mateapp
+
+image:
+  repository: nginx # заміниш на образ додатку, якщо потрібно
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+# секрети як key/value — зручно range-ити в темплейтах
+secrets:
+  app:
+    DJANGO_SECRET_KEY: "changeme"
+    DEBUG: "false"
+
+service:
+  type: ClusterIP
+  port: 8000
+  targetPort: 8000
+
+resources:
+  requests:
+    cpu: "100m"
+    memory: "128Mi"
+  limits:
+    cpu: "500m"
+    memory: "512Mi"
+
+rollingUpdate:
+  maxUnavailable: 0
+  maxSurge: 1
+
+# деякі шаблони очікують цей блок саме як .Values.hpa.*
+hpa:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 50
+  targetMemoryUtilizationPercentage: 60
+
+# (залишив також autoscaling, якщо десь у шаблонах він використовується)
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 50
+  targetMemoryUtilizationPercentage: 60
+
+pvc:
+  enabled: false
+  storage: 1Gi
+  storageClassName: "" # вкажи свій StorageClass за потреби
+
+serviceAccount:
+  name: todoapp # SA для додатку
+
+ingress:
+  enabled: false
+  className: ""
+  host: todo.local
+  path: /
+  pathType: Prefix
+  annotations: {}
+
+# ====== values для підчарту charts/mysql ======
+mysql:
+  namespace: mateapp
+
+  image:
+    repository: mysql
+    tag: "8.4"
+    pullPolicy: IfNotPresent
+
+  replicas: 1
+
+  service:
+    type: ClusterIP # важливо: деякі шаблони очікують цей ключ
+    port: 3306
+
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+
+  pvc:
+    storage: 1Gi
+    storageClassName: "" # вкажи свій StorageClass за потреби
+
+  affinity: {} # порожній об'єкт, щоб не було nil у шаблонах
+  tolerations: [] # порожній список теж валідний
+
+  # деякі шаблони (mysql/templates/hpa.yaml) читають саме .Values.mysql.hpa.*
+  hpa:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 1
+    targetCPUUtilizationPercentage: 80
+    targetMemoryUtilizationPercentage: 80
+
+  ingress:
+    enabled: false
+    className: ""
+    host: mysql.local
+    path: /
+    pathType: Prefix
+    annotations: {}
+
+  # якщо у підчарті є templates/serviceaccount.yaml і він очікує ці значення
+  serviceAccount:
+    create: false
+    name: "mysql"
