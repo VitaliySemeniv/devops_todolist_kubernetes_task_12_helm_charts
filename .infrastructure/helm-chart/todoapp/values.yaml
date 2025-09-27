@@ -1,22 +1,23 @@
-# ====== values.yaml (root chart: todoapp) ======
-
+# ===== root chart: todoapp =====
 namespace: mateapp
 
 image:
-  repository: nginx # заміниш на образ додатку, якщо потрібно
+  repository: nginx
   tag: "latest"
   pullPolicy: IfNotPresent
-
-# секрети як key/value — зручно range-ити в темплейтах
-secrets:
-  app:
-    DJANGO_SECRET_KEY: "changeme"
-    DEBUG: "false"
 
 service:
   type: ClusterIP
   port: 8000
   targetPort: 8000
+
+serviceAccount:
+  name: todoapp
+
+secrets:
+  app:
+    DJANGO_SECRET_KEY: "changeme"
+    DEBUG: "false"
 
 resources:
   requests:
@@ -30,7 +31,6 @@ rollingUpdate:
   maxUnavailable: 0
   maxSurge: 1
 
-# деякі шаблони очікують цей блок саме як .Values.hpa.*
 hpa:
   enabled: false
   minReplicas: 1
@@ -38,21 +38,21 @@ hpa:
   targetCPUUtilizationPercentage: 50
   targetMemoryUtilizationPercentage: 60
 
-# (залишив також autoscaling, якщо десь у шаблонах він використовується)
-autoscaling:
+nodeAffinity:
   enabled: false
-  minReplicas: 1
-  maxReplicas: 3
-  targetCPUUtilizationPercentage: 50
-  targetMemoryUtilizationPercentage: 60
+  key: "kubernetes.io/os"
+  operator: In
+  values: ["linux"]
+
+podAntiAffinity:
+  enabled: false
+  labelKey: "app.kubernetes.io/name"
+  topologyKey: "kubernetes.io/hostname"
 
 pvc:
   enabled: false
   storage: 1Gi
-  storageClassName: "" # вкажи свій StorageClass за потреби
-
-serviceAccount:
-  name: todoapp # SA для додатку
+  storageClassName: ""
 
 ingress:
   enabled: false
@@ -62,10 +62,8 @@ ingress:
   pathType: Prefix
   annotations: {}
 
-# ====== values для підчарту charts/mysql ======
+# ===== subchart: charts/mysql =====
 mysql:
-  namespace: mateapp
-
   image:
     repository: mysql
     tag: "8.4"
@@ -74,7 +72,7 @@ mysql:
   replicas: 1
 
   service:
-    type: ClusterIP # важливо: деякі шаблони очікують цей ключ
+    type: ClusterIP
     port: 3306
 
   resources:
@@ -87,12 +85,8 @@ mysql:
 
   pvc:
     storage: 1Gi
-    storageClassName: "" # вкажи свій StorageClass за потреби
+    storageClassName: ""
 
-  affinity: {} # порожній об'єкт, щоб не було nil у шаблонах
-  tolerations: [] # порожній список теж валідний
-
-  # деякі шаблони (mysql/templates/hpa.yaml) читають саме .Values.mysql.hpa.*
   hpa:
     enabled: false
     minReplicas: 1
@@ -100,15 +94,5 @@ mysql:
     targetCPUUtilizationPercentage: 80
     targetMemoryUtilizationPercentage: 80
 
-  ingress:
-    enabled: false
-    className: ""
-    host: mysql.local
-    path: /
-    pathType: Prefix
-    annotations: {}
-
-  # якщо у підчарті є templates/serviceaccount.yaml і він очікує ці значення
   serviceAccount:
-    create: false
-    name: "mysql"
+    name: mysql
